@@ -29,22 +29,55 @@ streamlit.watcher.path_watcher.watch_file = patched_watch_file
 # Now it's safe to import torch
 import torch
 
-# Set paths
-PROCESSED_DIR = '../data/processed'
-MODELS_DIR = '../models'
-EVAL_DIR = '../evaluation'
+# Set paths - use flexible path finding for both local and Streamlit Cloud deployment
+def get_project_root():
+    """Get the path to the project root folder"""
+    # When running locally
+    if os.path.exists(os.path.join(os.path.dirname(__file__), '..')):
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    
+    # When running on Streamlit Cloud (try to find data in the same directory as the app)
+    if os.path.exists(os.path.join(os.path.dirname(__file__), 'data')):
+        return os.path.abspath(os.path.dirname(__file__))
+    
+    # Last resort: current working directory
+    return os.getcwd()
+
+PROJECT_ROOT = get_project_root()
+PROCESSED_DIR = os.path.join(PROJECT_ROOT, 'data', 'processed')
+MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
+EVAL_DIR = os.path.join(PROJECT_ROOT, 'evaluation')
 
 # Create a function to load datasets
 @st.cache_data
 def load_data():
     """Load and cache the datasets"""
     try:
-        # Load processed data files - using movie_content_mapping.csv instead of movie_mapping.csv
-        # as it contains title and genre_str columns
-        movies_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'movie_content_mapping.csv'))
-        users_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'user_mapping.csv'))
-        train_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'train.csv'))
-        test_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'test.csv'))
+        # First, check if we need to upload data when in Streamlit Cloud
+        if not os.path.exists(os.path.join(PROCESSED_DIR, 'movie_content_mapping.csv')):
+            st.warning("Data files not found in the expected path. Please use the file uploader below.")
+            
+            # Add file uploaders for required files
+            with st.expander("Upload Data Files", expanded=True):
+                movies_file = st.file_uploader("Upload movie_content_mapping.csv", type="csv")
+                users_file = st.file_uploader("Upload user_mapping.csv", type="csv")
+                train_file = st.file_uploader("Upload train.csv", type="csv")
+                test_file = st.file_uploader("Upload test.csv", type="csv")
+                
+                if not all([movies_file, users_file, train_file, test_file]):
+                    st.stop()
+                
+                # Read uploaded files
+                movies_df = pd.read_csv(movies_file)
+                users_df = pd.read_csv(users_file)
+                train_df = pd.read_csv(train_file)
+                test_df = pd.read_csv(test_file)
+        else:
+            # Load processed data files using the correct path
+            movies_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'movie_content_mapping.csv'))
+            users_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'user_mapping.csv'))
+            train_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'train.csv'))
+            test_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'test.csv'))
         
         # If genre_str column doesn't exist in movies_df, add it (it's needed for recommendations)
         if 'genre_str' not in movies_df.columns:
@@ -52,17 +85,21 @@ def load_data():
             # This is a fallback in case the column is missing
             movies_df['genre_str'] = ''
             
-        # Load metrics if available
+        # Load metrics if available, or create placeholders
         try:
-            metrics_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'all_models_metrics.csv'))
+            # Try loading metrics files from expected locations
+            if os.path.exists(os.path.join(PROCESSED_DIR, 'all_models_metrics.csv')):
+                metrics_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'all_models_metrics.csv'))
+            else:
+                metrics_df = pd.DataFrame(columns=['model', 'rmse', 'mae'])
+                
+            if os.path.exists(os.path.join(EVAL_DIR, 'ranking_metrics.csv')):
+                ranking_df = pd.read_csv(os.path.join(EVAL_DIR, 'ranking_metrics.csv'))
+            else:
+                ranking_df = pd.DataFrame(columns=['model', 'k', 'precision', 'recall', 'ndcg'])
         except:
-            # If file doesn't exist, create a placeholder
+            # Default empty dataframes if files aren't found
             metrics_df = pd.DataFrame(columns=['model', 'rmse', 'mae'])
-            
-        try:
-            ranking_df = pd.read_csv(os.path.join(EVAL_DIR, 'ranking_metrics.csv'))
-        except:
-            # If file doesn't exist, create a placeholder
             ranking_df = pd.DataFrame(columns=['model', 'k', 'precision', 'recall', 'ndcg'])
         
         return {
