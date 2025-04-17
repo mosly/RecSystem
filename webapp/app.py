@@ -45,8 +45,50 @@ def get_project_root():
 
 PROJECT_ROOT = get_project_root()
 PROCESSED_DIR = os.path.join(PROJECT_ROOT, 'data', 'processed')
+ML_100K_DIR = os.path.join(PROJECT_ROOT, 'data', 'ml-100k')
 MODELS_DIR = os.path.join(PROJECT_ROOT, 'models')
 EVAL_DIR = os.path.join(PROJECT_ROOT, 'evaluation')
+
+# Function to load and process the original MovieLens data to get genre information
+@st.cache_data
+def load_movie_genres():
+    """Load movie genres from the original MovieLens dataset"""
+    try:
+        # Check if the original data file exists
+        if os.path.exists(os.path.join(ML_100K_DIR, 'u.item')):
+            # Define column names for the u.item file
+            cols = ['movie_id', 'title', 'release_date', 'video_release_date', 'IMDb_URL']
+            # Add genre columns
+            genre_cols = ['unknown', 'Action', 'Adventure', 'Animation', 'Children', 
+                          'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 
+                          'Film-Noir', 'Horror', 'Musical', 'Mystery', 'Romance', 
+                          'Sci-Fi', 'Thriller', 'War', 'Western']
+            cols.extend(genre_cols)
+            
+            # Read the data with '|' separator
+            movies_data = pd.read_csv(os.path.join(ML_100K_DIR, 'u.item'), 
+                                      sep='|', 
+                                      names=cols, 
+                                      encoding='latin-1')
+            
+            # Create a genre_str column by joining all the genres that apply to each movie
+            def create_genre_string(row):
+                genres = []
+                for genre in genre_cols:
+                    if row[genre] == 1:
+                        genres.append(genre)
+                return ', '.join(genres) if genres else 'Unknown'
+            
+            movies_data['genre_str'] = movies_data.apply(create_genre_string, axis=1)
+            
+            # Return just the movie_id and genre_str columns
+            return movies_data[['movie_id', 'genre_str']]
+            
+        return pd.DataFrame(columns=['movie_id', 'genre_str'])
+    
+    except Exception as e:
+        st.error(f"Error loading genre data: {e}")
+        return pd.DataFrame(columns=['movie_id', 'genre_str'])
 
 # Create a function to load datasets
 @st.cache_data
@@ -79,11 +121,17 @@ def load_data():
             train_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'train.csv'))
             test_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'test.csv'))
         
-        # If genre_str column doesn't exist in movies_df, add it (it's needed for recommendations)
-        if 'genre_str' not in movies_df.columns:
-            # Try to get genre data from other files or create an empty column
-            # This is a fallback in case the column is missing
-            movies_df['genre_str'] = ''
+        # Try to load genre information from original dataset
+        genres_df = load_movie_genres()
+        
+        # If genre_str column doesn't exist in movies_df, merge it with genres_df
+        if 'genre_str' not in movies_df.columns and not genres_df.empty:
+            movies_df = pd.merge(movies_df, genres_df, on='movie_id', how='left')
+            # Fill missing genres
+            movies_df['genre_str'] = movies_df['genre_str'].fillna('Unknown')
+        elif 'genre_str' not in movies_df.columns:
+            # Create an empty genre column if we couldn't load genre data
+            movies_df['genre_str'] = 'Unknown'
             
         # Load metrics if available, or create placeholders
         try:
