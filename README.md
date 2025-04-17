@@ -160,14 +160,6 @@ The results highlight the complementary strengths of collaborative and content-b
 
 ### References
 
-1. He, X., Liao, L., Zhang, H., Nie, L., Hu, X., & Chua, T. S. (2017). Neural collaborative filtering. In Proceedings of the 26th international conference on world wide web (pp. 173-182).
+1. MovieLens Dataset: https://grouplens.org/datasets/movielens/
 
-2. Hidasi, B., Karatzoglou, A., Baltrunas, L., & Tikk, D. (2015). Session-based recommendations with recurrent neural networks. arXiv preprint arXiv:1511.06939.
-
-3. Liang, D., Krishnan, R. G., Hoffman, M. D., & Jebara, T. (2018). Variational autoencoders for collaborative filtering. In Proceedings of the 2018 world wide web conference (pp. 689-698).
-
-4. Koren, Y., Bell, R., & Volinsky, C. (2009). Matrix factorization techniques for recommender systems. Computer, 42(8), 30-37.
-
-5. MovieLens Dataset: https://grouplens.org/datasets/movielens/
-
-6. PyTorch Documentation: https://pytorch.org/docs/stable/index.html
+2. PyTorch Documentation: https://pytorch.org/docs/stable/index.html
