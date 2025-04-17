@@ -67,9 +67,9 @@ def load_movie_genres():
             
             # Read the data with '|' separator
             movies_data = pd.read_csv(os.path.join(ML_100K_DIR, 'u.item'), 
-                                      sep='|', 
-                                      names=cols, 
-                                      encoding='latin-1')
+                                     sep='|', 
+                                     names=cols, 
+                                     encoding='latin-1')
             
             # Create a genre_str column by joining all the genres that apply to each movie
             def create_genre_string(row):
@@ -83,7 +83,8 @@ def load_movie_genres():
             
             # Return just the movie_id and genre_str columns
             return movies_data[['movie_id', 'genre_str']]
-            
+        
+        st.warning("Original movie data file not found. Genre information will be unavailable.")
         return pd.DataFrame(columns=['movie_id', 'genre_str'])
     
     except Exception as e:
@@ -121,11 +122,16 @@ def load_data():
             train_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'train.csv'))
             test_df = pd.read_csv(os.path.join(PROCESSED_DIR, 'test.csv'))
         
-        # Try to load genre information from original dataset
+        # Always try to load genre information from original dataset
         genres_df = load_movie_genres()
         
-        # If genre_str column doesn't exist in movies_df, merge it with genres_df
-        if 'genre_str' not in movies_df.columns and not genres_df.empty:
+        # Always merge genres (whether genre_str exists or not)
+        if not genres_df.empty:
+            if 'genre_str' in movies_df.columns:
+                # Replace existing genre_str column to ensure it has the most updated data
+                movies_df = movies_df.drop(columns=['genre_str'])
+                
+            # Merge the genres dataframe
             movies_df = pd.merge(movies_df, genres_df, on='movie_id', how='left')
             # Fill missing genres
             movies_df['genre_str'] = movies_df['genre_str'].fillna('Unknown')
