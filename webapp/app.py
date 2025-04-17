@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
@@ -12,6 +11,23 @@ from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
+
+# Create a patched version of Streamlit's path watching to avoid PyTorch errors
+# This is needed because PyTorch uses custom class attributes that conflict with Streamlit's file watcher
+import streamlit.watcher.path_watcher
+original_watch_file = streamlit.watcher.path_watcher.watch_file
+
+def patched_watch_file(path, callback):
+    # Skip watching PyTorch-related files
+    if 'torch' in path:
+        return
+    return original_watch_file(path, callback)
+
+# Apply the patch
+streamlit.watcher.path_watcher.watch_file = patched_watch_file
+
+# Now it's safe to import torch
+import torch
 
 # Set paths
 PROCESSED_DIR = '../data/processed'
@@ -346,7 +362,7 @@ def main():
     
     # Footer
     st.sidebar.markdown("---")
-    st.sidebar.info("Developed by RecSystem Team")
+    st.sidebar.info("Developed by Mostafa Mosly")
 
 if __name__ == "__main__":
     main()
