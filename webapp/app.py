@@ -453,7 +453,7 @@ def main():
     
     # Footer
     st.sidebar.markdown("---")
-    st.sidebar.info("Developed by Mostafa Mosly")
+    st.sidebar.info("Developed by Mostafa Mosly, Zienab Ahmed, Mohamed Abdelgwad, and Nourhan Mowad")
 
 if __name__ == "__main__":
     main()
